@@ -10,9 +10,9 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import {
-  rejectGuaranteeSchema,
-  type RejectGuaranteeFormValues,
-} from "../../schemas/rejectGuarantee.schema";
+  rejectReasonSchema,
+  type RejectReasonFormData,
+} from "../../schemas/guarantee.schema";
 
 interface CheckerActionsProps {
   guarantee: Guarantee;
@@ -38,8 +38,8 @@ export default function CheckerActions({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<RejectGuaranteeFormValues>({
-    resolver: zodResolver(rejectGuaranteeSchema),
+  } = useForm<RejectReasonFormData>({
+    resolver: zodResolver(rejectReasonSchema),
     defaultValues: {
       reason: "",
     },
@@ -59,7 +59,7 @@ export default function CheckerActions({
     });
   };
 
-  const handleReject = (data: RejectGuaranteeFormValues) => {
+  const handleReject = (data: RejectReasonFormData) => {
     onReject?.(data.reason);
     setOpen(false);
     reset({

@@ -2,66 +2,43 @@
 
 import React, { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Card,
-  Row,
-  Col,
-  Input,
-  InputNumber,
-  Select,
-  DatePicker,
   Button,
   Space,
   App,
-  AutoComplete,
+  Steps,
+  Upload,
+  Result,
 } from "antd";
+import type { UploadFile } from "antd/es/upload/interface";
+import type { RcFile } from "antd/es/upload";
 import {
-  SaveOutlined,
-  SendOutlined,
-  ArrowLeftOutlined,
   ExclamationCircleOutlined,
-  SearchOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
 import { useTranslations } from "next-intl";
 import {
   GuaranteeFormData,
   guaranteeFormSchema,
 } from "@/features/guarantee/schemas/guarantee.schema";
 import { Guarantee } from "@/features/guarantee/types/guarantee";
-import { CURRENCY_OPTIONS } from "@/features/guarantee/constants/guarantee";
 import { useCustomers } from "../../hooks/useGuaranteeMutations";
 import { useGuaranteeOptions } from "../../hooks/useGuaranteeOptions";
 
-const { TextArea } = Input;
-
-const Field = ({
-  label,
-  required,
-  error,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  children: React.ReactNode;
-}) => (
-  <div className="flex flex-col gap-1">
-    <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    {children}
-    {error && <span className="text-xs text-red-500">{error}</span>}
-  </div>
-);
+import Info from "./Info";
+import UploadFiles from "./Upload";
+import Review from "./Review";
+import FilePreviewModal from "./FilePreviewModal";
 
 export interface GuaranteeFormProps {
   initialData?: Guarantee;
   onSaveDraft: (data: GuaranteeFormData) => void;
   onSubmitForApproval: (data: GuaranteeFormData) => void;
   isLoading?: boolean;
+  currentStep?: number;
+  setCurrentStep?: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default function GuaranteeForm({
@@ -69,6 +46,8 @@ export default function GuaranteeForm({
   onSaveDraft,
   onSubmitForApproval,
   isLoading = false,
+  currentStep: propCurrentStep,
+  setCurrentStep: propSetCurrentStep,
 }: GuaranteeFormProps) {
   const { data: customers = [], isLoading: isLoadingCustomers } =
     useCustomers();
@@ -87,7 +66,58 @@ export default function GuaranteeForm({
 
   const router = useRouter();
   const isEdit = !!initialData;
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
+
+  const [internalStep, setInternalStep] = React.useState(0);
+  const currentStep = propCurrentStep !== undefined ? propCurrentStep : internalStep;
+  const setCurrentStep = propSetCurrentStep || setInternalStep;
+
+  const [signedFileList, setSignedFileList] = React.useState<UploadFile[]>([]);
+  const [unsignedFileList, setUnsignedFileList] = React.useState<UploadFile[]>([]);
+  const [isSuccess, setIsSuccess] = React.useState(false);
+  const [previewFile, setPreviewFile] = React.useState<{ url: string; type: string; name: string; buffer?: ArrayBuffer } | null>(null);
+
+  const beforeUpload = (file: RcFile) => {
+    const ext = file.name.slice((Math.max(0, file.name.lastIndexOf(".")) || Infinity)).toLowerCase();
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.xml'];
+    if (!allowedExtensions.includes(ext)) {
+      message.error(`File không đúng định dạng (${allowedExtensions.join(', ')})`);
+      return Upload.LIST_IGNORE;
+    }
+    if (file.size / 1024 / 1024 > 100) {
+      message.error('File không được vượt quá 100MB!');
+      return Upload.LIST_IGNORE;
+    }
+    const totalSize = (signedFileList.reduce((acc, f) => acc + (f.size || 0), 0) + unsignedFileList.reduce((acc, f) => acc + (f.size || 0), 0) + file.size) / 1024 / 1024;
+    if (totalSize > 200) {
+      message.error('Tổng dung lượng các file không được vượt quá 200MB!');
+      return Upload.LIST_IGNORE;
+    }
+    return false;
+  };
+
+  const handlePreview = async (file: UploadFile) => {
+    if (file.url && !file.originFileObj) {
+      window.open(file.url, '_blank');
+      return;
+    }
+    if (!file.originFileObj) return;
+    const url = URL.createObjectURL(file.originFileObj);
+    const ext = file.name.slice((Math.max(0, file.name.lastIndexOf(".")) || Infinity)).toLowerCase();
+
+    if (ext === '.docx' || ext === '.doc') {
+      try {
+        const arrayBuffer = await file.originFileObj.arrayBuffer();
+        setPreviewFile({ url, type: ext, name: file.name, buffer: arrayBuffer });
+      } catch (err) {
+        console.error(err);
+        message.error("Lỗi khi đọc file docx");
+      }
+    } else {
+      setPreviewFile({ url, type: ext, name: file.name });
+    }
+  };
+
   const t = useTranslations("guarantees");
   const tCommon = useTranslations("common");
 
@@ -101,28 +131,36 @@ export default function GuaranteeForm({
     formState: { errors },
   } = useForm<GuaranteeFormData>({
     resolver: zodResolver(guaranteeFormSchema),
+    mode: "onChange",
     defaultValues: initialData || {
       currency: "VND",
       guaranteeType: "BID_BOND",
       contractNumber: "",
       relatedContractNumber: "",
     },
-  });
-
+  }); 
+  
   useEffect(() => {
-    if (initialData) reset(initialData);
+    if (initialData) {
+      reset(initialData);
+      if (initialData.files && initialData.files.length > 0) {
+        const mappedFiles = initialData.files.map((f: any, i: number) => ({
+          uid: f.uid || String(i),
+          name: f.name || 'file',
+          status: 'done' as const,
+          url: f.url,
+          size: f.size,
+          type: f.type,
+          isSigned: f.isSigned === true || f.isSigned === 'true',
+        }));
+        setSignedFileList(mappedFiles.filter((f: any) => f.isSigned));
+        setUnsignedFileList(mappedFiles.filter((f: any) => !f.isSigned));
+      }
+    }
   }, [initialData, reset]);
 
-  const effectiveDate = watch("effectiveDate");
-  const expiryDate = watch("expiryDate");
   const guaranteeType = watch("guaranteeType");
-  const guaranteeAmount = watch("guaranteeAmount");
   const customerCifValue = watch("customerCif");
-  const currency = watch("currency") || "VND";
-  const guaranteeDays =
-    effectiveDate && expiryDate
-      ? Math.max(dayjs(expiryDate).diff(dayjs(effectiveDate), "day"), 0)
-      : 0;
 
   // Tự động re-validate tenderNumber khi loại bảo lãnh thay đổi
   useEffect(() => {
@@ -145,16 +183,16 @@ export default function GuaranteeForm({
       .map((cust) => ({
         value: cust.cif,
         label: (
-          <div className="flex flex-col py-1.5 px-0.5 border-b border-gray-100 last:border-b-0">
+          <div className="flex flex-col py-1.5 px-0.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
             <div className="flex items-center justify-between gap-3">
-              <span className="font-semibold text-blue-600 text-xs">
+              <span className="font-semibold text-blue-600 dark:text-blue-400 text-xs">
                 CIF: {cust.cif}
               </span>
-              <span className="text-[11px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
                 MST: {cust.taxCode}
               </span>
             </div>
-            <div className="text-xs text-gray-800 font-medium truncate mt-0.5">
+            <div className="text-xs text-gray-800 dark:text-gray-200 font-medium truncate mt-0.5">
               {cust.customerName}
             </div>
           </div>
@@ -183,7 +221,29 @@ export default function GuaranteeForm({
     beneficiaryAddress: raw.beneficiaryAddress || "",
     contactEmail: raw.contactEmail || "",
     phoneNumber: raw.phoneNumber || "",
+    files: [
+      ...signedFileList.map(f => {
+        let url = f.url;
+        if (!url && f.originFileObj && f.originFileObj instanceof Blob) {
+          try { url = URL.createObjectURL(f.originFileObj); } catch(e) {}
+        }
+        return { isSigned: true, uid: f.uid, name: f.name, size: f.size, type: f.type, url };
+      }),
+      ...unsignedFileList.map(f => {
+        let url = f.url;
+        if (!url && f.originFileObj && f.originFileObj instanceof Blob) {
+          try { url = URL.createObjectURL(f.originFileObj); } catch(e) {}
+        }
+        return { isSigned: false, uid: f.uid, name: f.name, size: f.size, type: f.type, url };
+      })
+    ],
   });
+
+  const handleNext = async () => {
+    const isValid = await trigger();
+    if (isValid) setCurrentStep((prev) => prev + 1);
+  };
+  const handlePrev = () => setCurrentStep((prev) => prev - 1);
 
   const handleSaveDraft = () => {
     const values = watch();
@@ -204,522 +264,115 @@ export default function GuaranteeForm({
       content: t("form.alerts.confirmSubmitContent"),
       okText: t("form.buttons.submitApproval"),
       cancelText: tCommon("buttons.cancel"),
-      onOk: () => onSubmitForApproval(cleanFormData(data)),
+      onOk: () => {
+        onSubmitForApproval(cleanFormData(data));
+        setIsSuccess(true);
+      },
     });
   };
 
+  if (isSuccess) {
+    return (
+      <Result
+        status="success"
+        title="Thành công"
+        subTitle="Hồ sơ bảo lãnh đã được lưu/gửi duyệt thành công!"
+        extra={[
+          <Button type="primary" key="console" onClick={() => router.push("/guarantees")}>
+            Về danh sách
+          </Button>,
+          <Button key="buy" onClick={() => { setIsSuccess(false); setCurrentStep(0); reset(); setSignedFileList([]); setUnsignedFileList([]); }}>
+            Tạo mới
+          </Button>,
+        ]}
+      />
+    );
+  }
+
   return (
-    <form
-      onSubmit={handleSubmit(onValidSubmit)}
-      className="space-y-4 max-w-5xl mx-auto pb-6"
-    >
-      <Card title={t("form.sections.customerInfo")} size="small">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={8}>
-            <Field label={t("form.fields.cif")} required error={errors.customerCif?.message}>
-              <Controller
-                name="customerCif"
-                control={control}
-                render={({ field }) => (
-                  <AutoComplete
-                    value={field.value || ""}
-                    options={customerOptions}
-                    open={cifDropdownOpen}
-                    onOpenChange={setCifDropdownOpen}
-                    onFocus={() => setCifDropdownOpen(true)}
-                    onSelect={(cif) => {
-                      field.onChange(cif);
-                      setCifDropdownOpen(false);
-                      const customer = customerMap.get(cif);
-                      if (customer) {
-                        setValue("customerName", customer.name, {
-                          shouldValidate: true,
-                        });
-                        setValue("taxCode", customer.taxCode, {
-                          shouldValidate: true,
-                        });
-                      }
-                    }}
-                    onChange={(val) => {
-                      field.onChange(val);
-                      setCifDropdownOpen(true);
-                      const customer = customerMap.get(val);
-                      if (customer) {
-                        setValue("customerName", customer.name, {
-                          shouldValidate: true,
-                        });
-                        setValue("taxCode", customer.taxCode, {
-                          shouldValidate: true,
-                        });
-                      } else {
-                        setValue("customerName", "", { shouldValidate: true });
-                        setValue("taxCode", "", { shouldValidate: true });
-                      }
-                    }}
-                    className="w-full"
-                    popupMatchSelectWidth={false}
-                    defaultActiveFirstOption={false}
-                    notFoundContent={
-                      isLoadingCustomers ? (
-                        <div className="py-2 px-3 text-center text-xs text-gray-400">
-                          {t("form.placeholders.loading")}
-                        </div>
-                      ) : (
-                        <div className="py-2 px-3 text-center text-xs text-gray-400">
-                          {t("form.placeholders.noCustomerFound")}
-                        </div>
-                      )
-                    }
-                  >
-                    <Input
-                      placeholder={t("form.placeholders.cif")}
-                      maxLength={12}
-                      allowClear
-                      onClick={() => setCifDropdownOpen(true)}
-                      suffix={
-                        <SearchOutlined
-                          className="text-gray-400 cursor-pointer hover:text-blue-500"
-                          onClick={() => setCifDropdownOpen((prev) => !prev)}
-                        />
-                      }
-                      status={errors.customerCif ? "error" : ""}
-                    />
-                  </AutoComplete>
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={8}>
-            <Field label={t("form.fields.customerName")}>
-              <Controller
-                name="customerName"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder={t("form.placeholders.autoFilled")}
-                    disabled
-                    className="bg-gray-50 text-gray-800 font-medium"
-                  />
-                )}
-              />
-            </Field>
-          </Col>
+    <div className="space-y-4 max-w-5xl mx-auto pb-6">
+      {propCurrentStep === undefined && (
+        <Steps
+          current={currentStep}
+          items={[
+            { title: 'Nhập thông tin' },
+            { title: 'Upload hồ sơ' },
+            { title: 'Xem lại' },
+          ]}
+          className="mb-8"
+        />
+      )}
+      <form onSubmit={handleSubmit(onValidSubmit)}>
+        {currentStep === 0 && (
+          <div>
+            <Info
+              control={control}
+              errors={errors}
+              watch={watch}
+              setValue={setValue}
+              trigger={trigger}
+              t={t}
+              customerOptions={customerOptions}
+              cifDropdownOpen={cifDropdownOpen}
+              setCifDropdownOpen={setCifDropdownOpen}
+              customerMap={customerMap}
+              isLoadingCustomers={isLoadingCustomers}
+              guaranteeTypeOptions={guaranteeTypeOptions}
+            />
+          </div>
+        )}
 
-          <Col xs={24} md={8}>
-            <Field label={t("form.fields.taxCode")} error={errors.taxCode?.message}>
-              <Controller
-                name="taxCode"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder={t("form.placeholders.autoFilled")}
-                    disabled
-                    className="bg-gray-50 text-gray-800 font-medium"
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-        </Row>
-      </Card>
+        {currentStep === 1 && (
+          <div>
+            <UploadFiles
+              signedFileList={signedFileList}
+              setSignedFileList={setSignedFileList}
+              unsignedFileList={unsignedFileList}
+              setUnsignedFileList={setUnsignedFileList}
+              beforeUpload={beforeUpload}
+              handlePreview={handlePreview}
+            />
+          </div>
+        )}
 
-      <Card title={t("form.sections.guaranteeInfo")} size="small">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={8}>
-            <Field
-              label={t("form.fields.guaranteeType")}
-              required
-              error={errors.guaranteeType?.message}
-            >
-              <Controller
-                name="guaranteeType"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    {...field}
-                    placeholder={t("form.placeholders.guaranteeType")}
-                    className="w-full"
-                    options={guaranteeTypeOptions}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
+        {currentStep === 2 && (
+          <div>
+            <Review
+              watch={watch}
+              t={t}
+              guaranteeTypeOptions={guaranteeTypeOptions}
+              signedFileList={signedFileList}
+              unsignedFileList={unsignedFileList}
+              handlePreview={handlePreview}
+            />
+          </div>
+        )}
 
-          <Col xs={24} md={8}>
-            <Field label={t("form.fields.currency")} required error={errors.currency?.message}>
-              <Controller
-                name="currency"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    {...field}
-                    className="w-full"
-                    options={CURRENCY_OPTIONS}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={8}>
-            <Field
-              label={t("form.fields.amount")}
-              required
-              error={errors.guaranteeAmount?.message}
-            >
-              <Controller
-                name="guaranteeAmount"
-                control={control}
-                render={({ field }) => (
-                  <InputNumber
-                    {...field}
-                    style={{ width: "100%" }}
-                    className="w-full"
-                    inputMode="numeric"
-                    placeholder={t("form.placeholders.amount")}
-                    controls={false}
-                    min={1}
-                    max={1_000_000_000_000}
-                    formatter={(val) =>
-                      `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                    }
-                    parser={(val) => {
-                      const clean = (val || "")
-                        .toString()
-                        .replace(/[^0-9]/g, "");
-                      return clean ? Number(clean) : ("" as any);
-                    }}
-                    onKeyDown={(e) => {
-                      const allowedKeys = [
-                        "Backspace",
-                        "Delete",
-                        "Tab",
-                        "Escape",
-                        "Enter",
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "ArrowUp",
-                        "ArrowDown",
-                        "Home",
-                        "End",
-                      ];
-                      if (
-                        allowedKeys.includes(e.key) ||
-                        (e.ctrlKey &&
-                          ["a", "c", "v", "x", "z"].includes(
-                            e.key.toLowerCase(),
-                          )) ||
-                        (e.metaKey &&
-                          ["a", "c", "v", "x", "z"].includes(
-                            e.key.toLowerCase(),
-                          ))
-                      ) {
-                        return;
-                      }
-                      // Chặn tuyệt đối không cho gõ bất kỳ chữ cái nào
-                      if (!/^[0-9]$/.test(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
-                    onPaste={(e) => {
-                      const pasteText = e.clipboardData.getData("text");
-                      if (!/^\d+$/.test(pasteText.replace(/,/g, "").trim())) {
-                        e.preventDefault();
-                        const numericOnly = pasteText.replace(/[^0-9]/g, "");
-                        if (numericOnly) {
-                          field.onChange(Number(numericOnly));
-                        }
-                      }
-                    }}
-                    suffix={
-                      <span className="text-gray-400 font-semibold text-xs pr-1">
-                        {currency}
-                      </span>
-                    }
-                    status={errors.guaranteeAmount ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
+        <Card size="small" className="mt-4">
+          <div className="flex justify-between items-center">
+            <Button onClick={() => router.back()} disabled={isLoading}>Hủy</Button>
+            <Space>
+              {currentStep > 0 && <Button onClick={handlePrev}>Quay lại</Button>}
+              {currentStep < 2 && <Button type="primary" onClick={handleNext}>Tiếp tục</Button>}
+              {currentStep === 2 && (
+                <>
+                  <Button onClick={handleSaveDraft} loading={isLoading}>
+                    {isEdit ? t("form.buttons.saveChanges") : t("form.buttons.saveDraft")}
+                  </Button>
+                  <Button type="primary" htmlType="submit" loading={isLoading}>
+                    {t("form.buttons.submitApproval")}
+                  </Button>
+                </>
+              )}
+            </Space>
+          </div>
+        </Card>
+      </form>
 
-          <Col xs={24} md={8}>
-            <Field
-              label={t("form.fields.effectiveDate")}
-              required
-              error={errors.effectiveDate?.message}
-            >
-              <Controller
-                name="effectiveDate"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={(d) => {
-                      field.onChange(d ? d.format("YYYY-MM-DD") : "");
-                      if (watch("expiryDate")) {
-                        trigger("expiryDate");
-                      }
-                    }}
-                    format="DD/MM/YYYY"
-                    className="w-full"
-                    placeholder={t("form.placeholders.selectDate")}
-                    disabledDate={(current) =>
-                      current && current.isBefore(dayjs().startOf("day"))
-                    }
-                    status={errors.effectiveDate ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={8}>
-            <Field
-              label={t("form.fields.expiryDate")}
-              required
-              error={errors.expiryDate?.message}
-            >
-              <Controller
-                name="expiryDate"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={(d) => {
-                      field.onChange(d ? d.format("YYYY-MM-DD") : "");
-                      setTimeout(() => trigger("expiryDate"), 0);
-                    }}
-                    format="DD/MM/YYYY"
-                    className="w-full"
-                    placeholder={t("form.placeholders.selectDate")}
-                    disabledDate={(current) => {
-                      if (!current) return false;
-                      if (current.isBefore(dayjs().startOf("day"))) {
-                        return true;
-                      }
-                      if (effectiveDate) {
-                        // Bắt buộc sau Ngày hiệu lực ít nhất 1 ngày
-                        return current.isBefore(
-                          dayjs(effectiveDate).startOf("day").add(1, "day"),
-                        );
-                      }
-                      return false;
-                    }}
-                    status={errors.expiryDate ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={8}>
-            <Field label={t("form.fields.validityDays")}>
-              <Input
-                value={
-                  effectiveDate && expiryDate
-                    ? t("detail.labels.days", { days: guaranteeDays })
-                    : undefined
-                }
-                placeholder={t("form.placeholders.autoCalculated")}
-                disabled
-                className="bg-gray-50 text-gray-800 font-medium"
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={8}>
-            <Field
-              label={t("form.fields.relatedContractNumber")}
-              error={errors.relatedContractNumber?.message}
-            >
-              <Controller
-                name="relatedContractNumber"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    placeholder={t("form.placeholders.relatedContractNumber")}
-                    status={errors.relatedContractNumber ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={8}>
-            <Field
-              label={t("form.fields.referenceNumber")}
-              error={errors.referenceNumber?.message}
-            >
-              <Controller
-                name="referenceNumber"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    placeholder={t("form.placeholders.referenceNumber")}
-                    status={errors.referenceNumber ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          {guaranteeType === "BID_BOND" && (
-            <Col xs={24} md={8}>
-              <Field
-                label={t("form.fields.tenderNumber")}
-                required
-                error={errors.tenderNumber?.message}
-              >
-                <Controller
-                  name="tenderNumber"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      value={field.value ?? ""}
-                      placeholder={t("form.placeholders.tenderNumber")}
-                      status={errors.tenderNumber ? "error" : ""}
-                    />
-                  )}
-                />
-              </Field>
-            </Col>
-          )}
-        </Row>
-      </Card>
-
-      <Card title={t("form.sections.beneficiaryInfo")} size="small">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12}>
-            <Field
-              label={t("form.fields.beneficiaryName")}
-              required
-              error={errors.beneficiaryName?.message}
-            >
-              <Controller
-                name="beneficiaryName"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder={t("form.placeholders.beneficiaryName")}
-                    status={errors.beneficiaryName ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={12}>
-            <Field
-              label={t("form.fields.beneficiaryAddress")}
-              error={errors.beneficiaryAddress?.message}
-            >
-              <Controller
-                name="beneficiaryAddress"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder={t("form.placeholders.beneficiaryAddress")}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={12}>
-            <Field
-              label={t("form.fields.contactEmail")}
-              required
-              error={errors.contactEmail?.message}
-            >
-              <Controller
-                name="contactEmail"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder={t("form.placeholders.contactEmail")}
-                    status={errors.contactEmail ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24} md={12}>
-            <Field
-              label={t("form.fields.phoneNumber")}
-              required
-              error={errors.phoneNumber?.message}
-            >
-              <Controller
-                name="phoneNumber"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    maxLength={10}
-                    placeholder={t("form.placeholders.phoneNumber")}
-                    status={errors.phoneNumber ? "error" : ""}
-                  />
-                )}
-              />
-            </Field>
-          </Col>
-          <Col xs={24}>
-            <Field
-              label={t("form.fields.purpose")}
-              required
-              error={errors.purpose?.message}
-            >
-              <Controller
-                name="purpose"
-                control={control}
-                render={({ field }) => (
-                  <div className="relative">
-                    <TextArea
-                      {...field}
-                      rows={3}
-                      placeholder={t("form.placeholders.purpose")}
-                      status={errors.purpose ? "error" : ""}
-                      style={{ resize: "none", paddingBottom: 28 }}
-                    />
-                    <span className="absolute bottom-2 right-3 text-xs text-gray-400 pointer-events-none">
-                      {field.value?.length || 0}/1000
-                    </span>
-                  </div>
-                )}
-              />
-            </Field>
-          </Col>
-        </Row>
-      </Card>
-
-      <Card size="small">
-        <div className="flex justify-end items-center">
-          <Space>
-            <Button
-              htmlType="button"
-              onClick={() => router.back()}
-              disabled={isLoading}
-              className="hover:border-red-500! hover:text-red-500! hover:bg-red-50! transition-colors"
-            >
-              {tCommon("buttons.cancel")}
-            </Button>
-            <Button
-              htmlType="button"
-              onClick={handleSaveDraft}
-              loading={isLoading}
-            >
-              {isEdit ? t("form.buttons.saveChanges") : t("form.buttons.saveDraft")}
-            </Button>
-            <Button type="primary" htmlType="submit" loading={isLoading}>
-              {t("form.buttons.submitApproval")}
-            </Button>
-          </Space>
-        </div>
-      </Card>
-    </form>
+      <FilePreviewModal
+        previewFile={previewFile}
+        setPreviewFile={setPreviewFile as any}
+      />
+    </div>
   );
 }

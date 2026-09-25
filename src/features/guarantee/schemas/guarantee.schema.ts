@@ -5,7 +5,7 @@ export const guaranteeFormSchema = z
   .object({
     // 1. Nhóm khách hàng
     customerCif: z
-      .string()
+      .string({ message: 'Mã CIF là bắt buộc' })
       .nonempty("Mã CIF là bắt buộc")
       .regex(/^[0-9]{6,12}$/, "Mã CIF phải từ 6 đến 12 chữ số"),
     customerName: z
@@ -22,17 +22,13 @@ export const guaranteeFormSchema = z
     ),
     guaranteeAmount: z
       .number({ message: "Số tiền bảo lãnh phải là số" })
-      .gt(0, "Số tiền bảo lãnh phải lớn hơn 0 ")
-      .lte(1_000_000_000_000, "Số tiền tối đa 1.000 tỷ VND )"),
+      .gt(0, "Số tiền bảo lãnh phải lớn hơn 0")
+      .lte(1_000_000_000_000, "Số tiền bảo lãnh tối đa là 1.000 tỷ VND"),
     currency: z.enum(["VND", "USD"]),
-    effectiveDate: z.string().nonempty("Ngày hiệu lực là bắt buộc"),
-    expiryDate: z.string().nonempty("Ngày hết hạn là bắt buộc"),
+    effectiveDate: z.string({ message: 'Ngày hiệu lực là bắt buộc' }).nonempty("Ngày hiệu lực là bắt buộc"),
+    expiryDate: z.string({ message: 'Ngày hết hạn là bắt buộc' }).nonempty("Ngày hết hạn là bắt buộc"),
     tenderNumber: z.string().optional().or(z.literal("")),
-    contractNumber: z
-      .string()
-      .max(100, "Số hợp đồng tối đa 100 ký tự")
-      .optional()
-      .or(z.literal("")),
+    contractNumber: z.string().max(100, "Số hợp đồng tối đa 100 ký tự").optional().or(z.literal("")),
 
     relatedContractNumber: z
       .string()
@@ -45,13 +41,14 @@ export const guaranteeFormSchema = z
       .optional()
       .or(z.literal("")),
     purpose: z
-      .string()
+      .string({ message: 'Mục đích bảo lãnh là bắt buộc' })
       .nonempty("Mục đích bảo lãnh là bắt buộc")
       .max(1000, "Tối đa 1000 ký tự"),
+    files: z.array(z.any()).optional(),
 
     // 3. Nhóm bên thụ hưởng & liên hệ
     beneficiaryName: z
-      .string()
+      .string({ message: 'Tên bên thụ hưởng là bắt buộc' })
       .nonempty("Tên bên thụ hưởng là bắt buộc")
       .max(255),
     beneficiaryAddress: z.string().max(500).optional().or(z.literal("")),
@@ -61,7 +58,7 @@ export const guaranteeFormSchema = z
       .min(1, "Email liên hệ là bắt buộc")
       .regex(
         /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-        "Email không đúng định dạng (ví dụ: contact@company.com)",
+        "Email không đúng định dạng ",
       ),
     phoneNumber: z
       .string({ message: "Số điện thoại là bắt buộc" })

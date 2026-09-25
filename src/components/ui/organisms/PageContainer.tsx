@@ -42,7 +42,7 @@ const PageContainer: React.FC<PageContainerProps> = ({
               </div>
             </div>
 
-            {extra && <div className="flex items-center gap-3">{extra}</div>}
+            {extra && <div className="flex flex-1 justify-end items-center gap-3 ml-8">{extra}</div>}
           </div>
         </div>
       )}

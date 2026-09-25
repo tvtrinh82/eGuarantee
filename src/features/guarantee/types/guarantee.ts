@@ -68,6 +68,7 @@ export interface Guarantee {
 
   // Histories
   histories?: ProcessingHistory[];
+  files?: any[];
 }
 
 export type GuaranteeListItem = Pick<

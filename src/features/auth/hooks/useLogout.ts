@@ -17,7 +17,10 @@ export const useLogout = () => {
       message.success(t("logoutSuccess"));
     },
     onError: (error: any) => {
-      console.warn("Logout API warning:", error);
+      // Ignore 404 errors (e.g. "Không tìm thấy hồ sơ.") since the token might be already invalid/expired
+      if (error?.status !== 404 && error?.response?.status !== 404) {
+        console.warn("Logout API warning:", error);
+      }
     },
     onSettled: () => {
       queryClient.clear();
