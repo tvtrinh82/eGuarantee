@@ -1,7 +1,9 @@
 {
   "buttons": {
-    "submit": "Gửi",
+    "submit": "Gửi duyệt",
     "cancel": "Hủy",
+    "back": "Quay lại",
+    "next": "Tiếp tục",
     "save": "Lưu",
     "close": "Đóng",
     "confirm": "Xác nhận",

@@ -7,7 +7,7 @@ export interface FilePreviewModalProps {
 }
 
 
-// Sử dụng Dynamic import cho 'docx-preview' để tối ưu bundle size, chỉ tải khi thật sự mở file Word
+// Sử dụng Dynamic import cho 'docx-preview' để tối ưu bundle size, 
 export default function FilePreviewModal({ previewFile, setPreviewFile }: FilePreviewModalProps) {
   const docxContainerRef = React.useRef<HTMLDivElement>(null);
 

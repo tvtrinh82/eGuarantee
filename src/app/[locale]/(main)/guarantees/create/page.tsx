@@ -45,9 +45,9 @@ const GuaranteeCreatePage = () => {
             current={currentStep}
             size="small"
             items={[
-              { title: 'Nhập thông tin' },
-              { title: 'Upload hồ sơ' },
-              { title: 'Xem lại' },
+              { title: t("form.steps.info") },
+              { title: t("form.steps.upload") },
+              { title: t("form.steps.review") },
             ]}
           />
         </div>

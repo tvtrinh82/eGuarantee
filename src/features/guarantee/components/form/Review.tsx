@@ -94,7 +94,7 @@ export default function Review({
           <Col xs={24} md={8}>
             <Field label={t("form.fields.validityDays")}>
               <div className={valueBoxClass}>
-                {guaranteeDays} ngày
+                {guaranteeDays} {t("form.review.days")}
               </div>
             </Field>
           </Col>
@@ -154,7 +154,7 @@ export default function Review({
         </Row>
       </Card>
 
-      <Card title="Hồ sơ đã upload" size="small">
+      <Card title={t("form.review.uploadedFiles")} size="small">
         <div className="flex flex-col gap-2">
           {[...signedFileList.map(f => ({...f, isSigned: true})), ...unsignedFileList.map(f => ({...f, isSigned: false}))].map((f, i) => (
             <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#1f1f1f] dark:hover:bg-[#303030] transition-colors cursor-pointer" onClick={() => handlePreview(f as any)}>
@@ -162,13 +162,13 @@ export default function Review({
               <div className="flex-1 flex flex-col">
                 <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                   {f.name} 
-                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400"> ({f.isSigned ? 'Có chữ ký số' : 'Không chữ ký số'})</span>
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400"> ({f.isSigned ? t("form.review.isSigned") : t("form.review.isNotSigned")})</span>
                 </span>
                 <span className="text-gray-500 dark:text-gray-400 text-xs">{f.size ? Math.round(f.size / 1024) + " KB" : ""}</span>
               </div>
             </div>
           ))}
-          {(signedFileList.length === 0 && unsignedFileList.length === 0) && <span className="text-gray-400 dark:text-gray-500 text-sm">Chưa có file nào được tải lên.</span>}
+          {(signedFileList.length === 0 && unsignedFileList.length === 0) && <span className="text-gray-400 dark:text-gray-500 text-sm">{t("form.review.noFiles")}</span>}
         </div>
       </Card>
     </>

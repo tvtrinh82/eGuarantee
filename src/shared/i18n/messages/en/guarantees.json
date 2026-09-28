@@ -173,7 +173,54 @@
       "missingInfoTitle": "Missing Information",
       "missingInfoContent": "Please enter at least CIF Code and Customer Name to save draft.",
       "confirmSubmitTitle": "Confirm Submit for Approval",
-      "confirmSubmitContent": "The request will be changed to \"Pending Approval\". Are you sure?"
+      "confirmSubmitContent": "The request will be changed to \"Pending Approval\". Are you sure?",
+      "invalidFileFormat": "Invalid file format ({extensions})",
+      "fileTooLarge": "File must not exceed 100MB!",
+      "totalSizeExceeded": "Total file size must not exceed 200MB!",
+      "readDocxError": "Error reading docx file"
+    },
+    "steps": {
+      "info": "Enter Information",
+      "upload": "Upload Documents",
+      "review": "Review"
+    },
+    "validation": {
+      "cifRequired": "CIF Code is required",
+      "cifFormat": "CIF Code must be 6-12 digits",
+      "customerNameRequired": "Customer Name is required",
+      "maxLength255": "Maximum 255 characters",
+      "maxLength100": "Maximum 100 characters",
+      "maxLength500": "Maximum 500 characters",
+      "maxLength1000": "Maximum 1000 characters",
+      "guaranteeTypeRequired": "Please select a guarantee type",
+      "amountNumber": "Guarantee amount must be a number",
+      "amountGt0": "Guarantee amount must be greater than 0",
+      "amountMax": "Guarantee amount maximum is 1,000 billion VND",
+      "effectiveDateRequired": "Effective date is required",
+      "expiryDateRequired": "Expiry date is required",
+      "purposeRequired": "Guarantee purpose is required",
+      "beneficiaryNameRequired": "Beneficiary name is required",
+      "emailRequired": "Contact email is required",
+      "emailFormat": "Invalid email format",
+      "phoneRequired": "Phone number is required",
+      "phoneFormat": "Phone number must be exactly 10 digits",
+      "expiryAfterEffective": "Expiry date must be after effective date",
+      "tenderRequired": "Tender number is required for Bid Bond"
+    },
+    "upload": {
+      "signedTitle": "Signed Documents",
+      "unsignedTitle": "Unsigned Documents",
+      "dragHint": "Drag or drop files here",
+      "formatHint": "Supported formats: .pdf, .doc",
+      "chooseFile": "Choose file",
+      "sizeLimit": "Max total size: 200MB (100MB/file)"
+    },
+    "review": {
+      "days": "days",
+      "uploadedFiles": "Uploaded Files",
+      "isSigned": "Digitally Signed",
+      "isNotSigned": "Not Signed",
+      "noFiles": "No files uploaded."
     }
   },
   "messages": {

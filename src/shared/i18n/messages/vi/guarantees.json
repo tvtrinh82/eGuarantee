@@ -173,7 +173,54 @@
       "missingInfoTitle": "Thiếu thông tin",
       "missingInfoContent": "Vui lòng nhập tối thiểu Mã CIF và Tên khách hàng để lưu nháp.",
       "confirmSubmitTitle": "Xác nhận gửi phê duyệt",
-      "confirmSubmitContent": "Hồ sơ sẽ chuyển sang trạng thái \"Chờ phê duyệt\". Bạn có chắc chắn?"
+      "confirmSubmitContent": "Hồ sơ sẽ chuyển sang trạng thái \"Chờ phê duyệt\". Bạn có chắc chắn?",
+      "invalidFileFormat": "File không đúng định dạng ({extensions})",
+      "fileTooLarge": "File không được vượt quá 100MB!",
+      "totalSizeExceeded": "Tổng dung lượng các file không được vượt quá 200MB!",
+      "readDocxError": "Lỗi khi đọc file docx"
+    },
+    "steps": {
+      "info": "Nhập thông tin",
+      "upload": "Upload hồ sơ",
+      "review": "Xem lại"
+    },
+    "validation": {
+      "cifRequired": "Mã CIF là bắt buộc",
+      "cifFormat": "Mã CIF phải từ 6 đến 12 chữ số",
+      "customerNameRequired": "Tên khách hàng là bắt buộc",
+      "maxLength255": "Tối đa 255 ký tự",
+      "maxLength100": "Tối đa 100 ký tự",
+      "maxLength500": "Tối đa 500 ký tự",
+      "maxLength1000": "Tối đa 1000 ký tự",
+      "guaranteeTypeRequired": "Vui lòng chọn loại bảo lãnh",
+      "amountNumber": "Số tiền bảo lãnh phải là số",
+      "amountGt0": "Số tiền bảo lãnh phải lớn hơn 0",
+      "amountMax": "Số tiền bảo lãnh tối đa là 1.000 tỷ VND",
+      "effectiveDateRequired": "Ngày hiệu lực là bắt buộc",
+      "expiryDateRequired": "Ngày hết hạn là bắt buộc",
+      "purposeRequired": "Mục đích bảo lãnh là bắt buộc",
+      "beneficiaryNameRequired": "Tên bên thụ hưởng là bắt buộc",
+      "emailRequired": "Email liên hệ là bắt buộc",
+      "emailFormat": "Email không đúng định dạng",
+      "phoneRequired": "Số điện thoại là bắt buộc",
+      "phoneFormat": "Số điện thoại phải gồm đúng 10 chữ số",
+      "expiryAfterEffective": "Ngày hết hạn phải sau ngày hiệu lực",
+      "tenderRequired": "Số hiệu thầu là bắt buộc khi chọn Bảo lãnh dự thầu"
+    },
+    "upload": {
+      "signedTitle": "Hồ sơ có ký số",
+      "unsignedTitle": "Hồ sơ không có ký số",
+      "dragHint": "Kéo hoặc thả tập tin vào đây",
+      "formatHint": "Hỗ trợ các định dạng: .pdf, .doc",
+      "chooseFile": "Chọn tệp tin",
+      "sizeLimit": "Giới hạn kích thước tổng các file đính kèm: 200MB (100MB/file)"
+    },
+    "review": {
+      "days": "ngày",
+      "uploadedFiles": "Hồ sơ đã upload",
+      "isSigned": "Có chữ ký số",
+      "isNotSigned": "Không chữ ký số",
+      "noFiles": "Chưa có file nào được tải lên."
     }
   },
   "messages": {

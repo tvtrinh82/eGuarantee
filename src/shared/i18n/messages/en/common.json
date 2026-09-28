@@ -2,6 +2,8 @@
   "buttons": {
     "submit": "Submit",
     "cancel": "Cancel",
+    "back": "Back",
+    "next": "Next",
     "save": "Save",
     "close": "Close",
     "confirm": "Confirm",

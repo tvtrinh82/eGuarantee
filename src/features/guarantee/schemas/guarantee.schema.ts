@@ -94,6 +94,92 @@ export const guaranteeFormSchema = z
 // Tự động sinh kiểu TypeScript
 export type GuaranteeFormData = z.infer<typeof guaranteeFormSchema>;
 
+export const getGuaranteeFormSchema = (t: any) =>
+  z
+    .object({
+      customerCif: z
+        .string({ message: t("form.validation.cifRequired") })
+        .nonempty(t("form.validation.cifRequired"))
+        .regex(/^[0-9]{6,12}$/, t("form.validation.cifFormat")),
+      customerName: z
+        .string({ message: t("form.validation.customerNameRequired") })
+        .trim()
+        .min(1, t("form.validation.customerNameRequired"))
+        .max(255, t("form.validation.maxLength255")),
+      taxCode: z.string().max(20).optional().or(z.literal("")),
+
+      guaranteeType: z.enum(
+        ["BID_BOND", "PERFORMANCE", "ADVANCE_PAYMENT", "PAYMENT", "OTHER"],
+        { message: t("form.validation.guaranteeTypeRequired") },
+      ),
+      guaranteeAmount: z
+        .number({ message: t("form.validation.amountNumber") })
+        .gt(0, t("form.validation.amountGt0"))
+        .lte(1_000_000_000_000, t("form.validation.amountMax")),
+      currency: z.enum(["VND", "USD"]),
+      effectiveDate: z.string({ message: t("form.validation.effectiveDateRequired") }).nonempty(t("form.validation.effectiveDateRequired")),
+      expiryDate: z.string({ message: t("form.validation.expiryDateRequired") }).nonempty(t("form.validation.expiryDateRequired")),
+      tenderNumber: z.string().optional().or(z.literal("")),
+      contractNumber: z.string().max(100, t("form.validation.maxLength100")).optional().or(z.literal("")),
+
+      relatedContractNumber: z
+        .string()
+        .max(100, t("form.validation.maxLength100"))
+        .optional()
+        .or(z.literal("")),
+      referenceNumber: z
+        .string()
+        .max(100, t("form.validation.maxLength100"))
+        .optional()
+        .or(z.literal("")),
+      purpose: z
+        .string({ message: t("form.validation.purposeRequired") })
+        .nonempty(t("form.validation.purposeRequired"))
+        .max(1000, t("form.validation.maxLength1000")),
+      files: z.array(z.any()).optional(),
+
+      beneficiaryName: z
+        .string({ message: t("form.validation.beneficiaryNameRequired") })
+        .nonempty(t("form.validation.beneficiaryNameRequired"))
+        .max(255),
+      beneficiaryAddress: z.string().max(500, t("form.validation.maxLength500")).optional().or(z.literal("")),
+      contactEmail: z
+        .string({ message: t("form.validation.emailRequired") })
+        .trim()
+        .min(1, t("form.validation.emailRequired"))
+        .regex(
+          /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+          t("form.validation.emailFormat"),
+        ),
+      phoneNumber: z
+        .string({ message: t("form.validation.phoneRequired") })
+        .trim()
+        .nonempty(t("form.validation.phoneRequired"))
+        .regex(/^[0-9]{10}$/, t("form.validation.phoneFormat")),
+    })
+    .refine(
+      (data) => {
+        if (!data.effectiveDate || !data.expiryDate) return true;
+        return dayjs(data.expiryDate).isAfter(dayjs(data.effectiveDate), "day");
+      },
+      {
+        message: t("form.validation.expiryAfterEffective"),
+        path: ["expiryDate"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.guaranteeType === "BID_BOND") {
+          return !!data.tenderNumber && data.tenderNumber.trim().length > 0;
+        }
+        return true;
+      },
+      {
+        message: t("form.validation.tenderRequired"),
+        path: ["tenderNumber"],
+      },
+    );
+
 // Schema kiểm tra lý do từ chối dành cho Checker (10 đến 500 ký tự)
 export const rejectReasonSchema = z.object({
   reason: z

@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 import {
   GuaranteeFormData,
   guaranteeFormSchema,
+  getGuaranteeFormSchema,
 } from "@/features/guarantee/schemas/guarantee.schema";
 import { Guarantee } from "@/features/guarantee/types/guarantee";
 import { useCustomers } from "../../hooks/useGuaranteeMutations";
@@ -81,16 +82,16 @@ export default function GuaranteeForm({
     const ext = file.name.slice((Math.max(0, file.name.lastIndexOf(".")) || Infinity)).toLowerCase();
     const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.xml'];
     if (!allowedExtensions.includes(ext)) {
-      message.error(`File không đúng định dạng (${allowedExtensions.join(', ')})`);
+      message.error(t("form.alerts.invalidFileFormat", { extensions: allowedExtensions.join(', ') }));
       return Upload.LIST_IGNORE;
     }
     if (file.size / 1024 / 1024 > 100) {
-      message.error('File không được vượt quá 100MB!');
+      message.error(t("form.alerts.fileTooLarge"));
       return Upload.LIST_IGNORE;
     }
     const totalSize = (signedFileList.reduce((acc, f) => acc + (f.size || 0), 0) + unsignedFileList.reduce((acc, f) => acc + (f.size || 0), 0) + file.size) / 1024 / 1024;
     if (totalSize > 200) {
-      message.error('Tổng dung lượng các file không được vượt quá 200MB!');
+      message.error(t("form.alerts.totalSizeExceeded"));
       return Upload.LIST_IGNORE;
     }
     return false;
@@ -111,7 +112,7 @@ export default function GuaranteeForm({
         setPreviewFile({ url, type: ext, name: file.name, buffer: arrayBuffer });
       } catch (err) {
         console.error(err);
-        message.error("Lỗi khi đọc file docx");
+        message.error(t("form.alerts.readDocxError"));
       }
     } else {
       setPreviewFile({ url, type: ext, name: file.name });
@@ -130,7 +131,7 @@ export default function GuaranteeForm({
     trigger,
     formState: { errors },
   } = useForm<GuaranteeFormData>({
-    resolver: zodResolver(guaranteeFormSchema),
+    resolver: zodResolver(getGuaranteeFormSchema(t)),
     mode: "onChange",
     defaultValues: initialData || {
       currency: "VND",
@@ -138,8 +139,8 @@ export default function GuaranteeForm({
       contractNumber: "",
       relatedContractNumber: "",
     },
-  }); 
-  
+  });
+
   useEffect(() => {
     if (initialData) {
       reset(initialData);
@@ -225,14 +226,14 @@ export default function GuaranteeForm({
       ...signedFileList.map(f => {
         let url = f.url;
         if (!url && f.originFileObj && f.originFileObj instanceof Blob) {
-          try { url = URL.createObjectURL(f.originFileObj); } catch(e) {}
+          try { url = URL.createObjectURL(f.originFileObj); } catch (e) { }
         }
         return { isSigned: true, uid: f.uid, name: f.name, size: f.size, type: f.type, url };
       }),
       ...unsignedFileList.map(f => {
         let url = f.url;
         if (!url && f.originFileObj && f.originFileObj instanceof Blob) {
-          try { url = URL.createObjectURL(f.originFileObj); } catch(e) {}
+          try { url = URL.createObjectURL(f.originFileObj); } catch (e) { }
         }
         return { isSigned: false, uid: f.uid, name: f.name, size: f.size, type: f.type, url };
       })
@@ -262,7 +263,7 @@ export default function GuaranteeForm({
       title: t("form.alerts.confirmSubmitTitle"),
       icon: <ExclamationCircleOutlined />,
       content: t("form.alerts.confirmSubmitContent"),
-      okText: t("form.buttons.submitApproval"),
+      okText: tCommon("buttons.submit"),
       cancelText: tCommon("buttons.cancel"),
       onOk: () => {
         onSubmitForApproval(cleanFormData(data));
@@ -295,9 +296,9 @@ export default function GuaranteeForm({
         <Steps
           current={currentStep}
           items={[
-            { title: 'Nhập thông tin' },
-            { title: 'Upload hồ sơ' },
-            { title: 'Xem lại' },
+            { title: t("form.steps.info") },
+            { title: t("form.steps.upload") },
+            { title: t("form.steps.review") },
           ]}
           className="mb-8"
         />
@@ -331,6 +332,7 @@ export default function GuaranteeForm({
               setUnsignedFileList={setUnsignedFileList}
               beforeUpload={beforeUpload}
               handlePreview={handlePreview}
+              t={t}
             />
           </div>
         )}
@@ -350,19 +352,18 @@ export default function GuaranteeForm({
 
         <Card size="small" className="mt-4">
           <div className="flex justify-between items-center">
-            <Button onClick={() => router.back()} disabled={isLoading}>Hủy</Button>
+            <Button onClick={() => router.back()} disabled={isLoading}> ✕ {tCommon("buttons.cancel")}</Button>
             <Space>
-              {currentStep > 0 && <Button onClick={handlePrev}>Quay lại</Button>}
-              {currentStep < 2 && <Button type="primary" onClick={handleNext}>Tiếp tục</Button>}
+              {currentStep > 0 && ( <Button onClick={handlePrev}> ← {tCommon("buttons.back")}</Button>)}
+              <Button onClick={handleSaveDraft} loading={isLoading}>
+                ⎘ {isEdit ? 
+                t("form.buttons.saveChanges") : t("form.buttons.saveDraft")}
+              </Button>
+              {currentStep < 2 && <Button type="primary" onClick={handleNext}> {tCommon("buttons.next")} → </Button>}
               {currentStep === 2 && (
-                <>
-                  <Button onClick={handleSaveDraft} loading={isLoading}>
-                    {isEdit ? t("form.buttons.saveChanges") : t("form.buttons.saveDraft")}
-                  </Button>
-                  <Button type="primary" htmlType="submit" loading={isLoading}>
-                    {t("form.buttons.submitApproval")}
-                  </Button>
-                </>
+                <Button type="primary" htmlType="submit" loading={isLoading}>
+                  {tCommon("buttons.submit")} →
+                </Button>
               )}
             </Space>
           </div>
